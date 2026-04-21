@@ -1,157 +1,171 @@
-# Distributed Log Anomaly Detection System (MPI + OpenMP Hybrid)
+# Distributed Log Anomaly Detection System (MPI, OpenMP, Hybrid)
 
-## 📌 Overview
-This project implements a **Distributed Log Anomaly Detection System** using High Performance Computing (HPC). It analyzes HDFS logs and classifies them as **Normal** or **Anomalous** using parallel processing.
+## Overview
+This project implements a high-performance **log anomaly detection system** in C using three parallelization strategies:
 
-We implemented and compared three execution models:
-- **OpenMP** → Shared-memory parallelism (single VM)
-- **MPI** → Distributed parallelism (multi-VM)
-- **Hybrid (MPI + OpenMP)** → Combined model for best scalability
+- **MPI (Message Passing Interface)** → distributed memory parallelism
+- **OpenMP** → shared memory parallelism
+- **Hybrid (MPI + OpenMP)** → combines both for scalability and speed
 
----
-
-## 🧠 What We Did
-
-- Set up **two VMs (node1 & node2)** on VirtualBox
-- Configured **SSH + hostfile-based MPI cluster**
-- Implemented:
-  - Pure **OpenMP** version
-  - Pure **MPI** version
-  - **Hybrid MPI + OpenMP** version
-- Built full pipeline in **C**:
-  - Log parsing
-  - Feature extraction
-  - Lightweight classification model
-- Used **rank-based data distribution** (`i % size == rank`)
-- Used **OpenMP reduction** for parallel metrics
-- Evaluated using:
-  - Accuracy, Precision, Recall, F1-score, Execution time
+The system processes HDFS log data, extracts features, applies a lightweight classification model, and evaluates performance using standard metrics.
 
 ---
 
-## 📊 Datasets Used
+## Core Processing Pipeline
+All three implementations follow the same logical pipeline:
 
-We worked with **two different datasets**:
-
-### 1. Small HDFS Dataset (LogHub split)
-- Located in `dataset/` and `dataset_split/`
-- Includes:
-  - Training data
-  - Normal test logs
-  - Abnormal test logs
-- Size: ~59MB total
-
-Used for:
-- Model testing
-- Debugging
-- Performance comparison (fast runs)
-
-### 2. Large Dataset (HDFS.log)
-- Located in `hybrid-openmp-mpi/`
-- File: `HDFS.log`
-- Size: **~1.5 GB**
-
-Used for:
-- Real scalability testing
-- Stress testing MPI + OpenMP
-- Evaluating distributed performance
+1. Load model parameters (weights and bias)
+2. Read dataset
+3. Parse log sequences
+4. Extract features
+5. Compute linear score
+6. Apply sigmoid function
+7. Apply threshold for classification
+8. Compute TP, FP, TN, FN
+9. Aggregate results (thread-level or process-level)
+10. Compute final metrics
 
 ---
 
-## 🏗️ System Architecture
+## Implementations
 
-### 🔹 MPI Layer
-- Runs across **node1 and node2**
-- Splits workload using rank
-- Uses `MPI_Reduce` to combine results
+### 1. MPI Version (Distributed)
 
-### 🔹 OpenMP Layer
-- Runs inside each node
-- Parallel loop:
-```c
-#pragma omp parallel for reduction(+:TP,FP,TN,FN)
+**Key Idea:** Work is divided across multiple processes (possibly across machines).
+
+**Flow:**
+- Initialize MPI and assign ranks
+- Split dataset into chunks using rank
+- Each process handles its portion
+- Compute local metrics (TP, FP, TN, FN)
+- Combine results using `MPI_Reduce`
+- Rank 0 computes final metrics and prints results
+
+**Parallelism Type:** Process-level
+
+---
+
+### 2. OpenMP Version (Shared Memory)
+
+**Key Idea:** Parallelize loops using threads on a single machine.
+
+**Flow:**
+- Load dataset into memory
+- Use `#pragma omp parallel for` to distribute loop iterations
+- Each thread processes part of dataset
+- Use reduction to combine metrics
+- Compute final metrics
+
+**Parallelism Type:** Thread-level
+
+---
+
+### 3. Hybrid (MPI + OpenMP)
+
+**Key Idea:** Combine distributed and shared memory parallelism.
+
+**Flow:**
+- MPI distributes data across processes (nodes)
+- Each process uses OpenMP threads internally
+- Threads process data in parallel
+- Local results reduced using OpenMP
+- Global results reduced using MPI
+
+**Parallelism Type:** Process + Thread level
+
+---
+
+## Key Differences
+
+| Approach | Parallelism | Scope |
+|--------|------------|------|
+| MPI | Process-level | Multi-node |
+| OpenMP | Thread-level | Single node |
+| Hybrid | Both | Multi-node + multi-core |
+
+---
+
+## Output Definition
+
+### Primary Output
+```
+Total Logs Processed: <N>
+Total Anomalies Detected: <A>
+Normal Logs: <N - A>
 ```
 
-### 🔹 Hybrid Model
-- MPI distributes logs across machines
-- OpenMP accelerates processing inside each machine
+### Timing Output
+```
+Execution Time: <T> seconds
+```
+
+### Metrics
+- True Positive (TP)
+- False Positive (FP)
+- True Negative (TN)
+- False Negative (FN)
+- Accuracy
+- Precision
+- Recall
+- F1 Score
 
 ---
 
-## 📁 Updated Project Structure
+## Datasets
 
+### Small Dataset (~59MB)
+- Located in `dataset/` and `dataset_split/`
+- Used for testing and debugging
+
+### Large Dataset (~1.5GB)
+- File: `HDFS.log`
+- Used for scalability and stress testing
+
+---
+
+## System Architecture
+
+### MPI Layer
+- Distributes workload across nodes
+- Uses rank-based partitioning
+- Aggregates results via `MPI_Reduce`
+
+### OpenMP Layer
+- Parallel processing inside each node
+- Uses loop-level parallelism
+
+### Hybrid Model
+- MPI handles distribution
+- OpenMP accelerates local computation
+
+---
+
+## Project Structure
 ```
 log_monit/
-│
-├── Makefile
-├── main.c
-├── run.sh
-├── hosts
-├── log_monitor
-├── hybrid_run
-├── mpi
-│
-├── dataset/                     # Small dataset (~59MB)
-│   ├── anomaly_label.csv
-│   ├── hdfs_train.txt
-│   ├── hdfs_test_normal.txt
-│   └── hdfs_test_abnormal.txt
-│
+├── dataset/
 ├── dataset_split/
-│   ├── train/
-│   │   ├── normal.txt
-│   │   └── abnormal.txt
-│   └── test/
-│       ├── normal.txt
-│       └── abnormal.txt
-│
 ├── model/
-│   ├── fc_weight.txt
-│   └── fc_bias.txt
-│
 ├── only_openmp/
-│   ├── main.c
-│   ├── openmp_run
-│   └── run_openmp.sh
-│
 ├── only_mpi/
-│   ├── main.c
-│   ├── mpi_run
-│   └── run_mpi.sh
-│
 ├── hybrid/
-│   ├── main.c
-│   ├── hybrid_run
-│   └── run_hybrid.sh
+├── main.c
+├── Makefile
 └── README.md
 ```
 
 ---
 
-## 🌐 Cluster Setup
+## Requirements
 
-Nodes used:
-- `vm1@node1`
-- `vm1@node2`
-
-### hosts file:
-```
-node1 slots=2
-node2 slots=2
-```
+- GCC with OpenMP support
+- MPI (OpenMPI or MPICH)
+- Linux (Ubuntu recommended)
+- VirtualBox (for multi-node setup)
 
 ---
 
-## ⚙️ Requirements
-
-- GCC with OpenMP
-- OpenMPI / MPICH
-- Linux (Ubuntu)
-- VirtualBox (multi-node setup)
-
----
-
-## 🛠️ Compilation
+## Compilation
 
 ### OpenMP
 ```
@@ -170,7 +184,7 @@ mpicc -fopenmp main.c -lm -o hybrid_run
 
 ---
 
-## 🚀 Execution
+## Execution
 
 ### OpenMP
 ```
@@ -180,54 +194,32 @@ export OMP_NUM_THREADS=4
 
 ### MPI
 ```
-mpirun -np 4 \
---hostfile hosts \
---map-by ppr:2:node \
---bind-to core \
-./mpi_run
+mpirun -np 4 --hostfile hosts ./mpi_run
 ```
 
 ### Hybrid
 ```
 export OMP_NUM_THREADS=2
-
-mpirun -np 4 \
---hostfile hosts \
---map-by ppr:2:node \
---bind-to core \
-./hybrid_run
+mpirun -np 4 --hostfile hosts ./hybrid_run
 ```
 
 ---
 
-## 🔄 Execution Flow
+## Execution Flow (Hybrid)
 
 1. Initialize MPI
-2. Load dataset (small or large)
-3. Distribute logs using rank
-4. Process logs in parallel (OpenMP)
-5. Perform anomaly detection
-6. Reduce results (MPI)
-7. Print final metrics (rank 0)
+2. Load dataset
+3. Distribute data using rank
+4. Process data using OpenMP threads
+5. Perform classification
+6. Reduce results using MPI
+7. Print metrics (rank 0)
 8. Finalize MPI
 
 ---
 
-## 📊 Metrics
-
-- TP, FP, TN, FN
-- Accuracy
-- Precision
-- Recall
-- F1 Score
-- Execution Time
-
----
-
-## 🧪 Sample Output
-
+## Sample Output
 ```
-=== HYBRID CLASSIFICATION RESULTS ===
 TP: 2, FP: 7, TN: 110521, FN: 3366
 Total Samples: 113896
 Time: 0.17 sec
@@ -239,38 +231,35 @@ F1 Score: 0.0012
 
 ---
 
-## ⚠️ Observations
+## Observations
 
-- Dataset is **highly imbalanced**
-- Accuracy can be misleading
-- **F1-score is more reliable**
+- Dataset is highly imbalanced
+- Accuracy alone is misleading
+- F1-score is a better performance metric
 
-### Performance:
-- OpenMP → Fast (single VM)
-- MPI → Scales across nodes
-- Hybrid → Best performance overall
-
----
-
-## 🎯 Conclusion
-
-We successfully built a **distributed anomaly detection system in C** and validated it on both:
-- Small structured dataset
-
-The **Hybrid (MPI + OpenMP)** approach provides the best balance of speed and scalability.
+### Performance Comparison
+- OpenMP → Fast on single machine
+- MPI → Scales across machines
+- Hybrid → Best overall performance
 
 ---
 
-## 🚀 Future Work
+## Conclusion
 
-- Deep learning (LSTM / Transformer)
+This project demonstrates how **parallel computing techniques** can significantly improve performance in large-scale log processing systems. The hybrid model provides the best balance between scalability and efficiency.
+
+---
+
+## Future Work
+
+- Deep learning models (LSTM, Transformers)
 - Real-time log streaming
 - GPU acceleration
-- Better handling of class imbalance
+- Improved handling of class imbalance
 
 ---
 
-## 👤 Author
+## Authors
 
 - Meraj Alam Siddique
 - Kotha Anshul Reddy
