@@ -123,19 +123,6 @@ log_monit/
 │   ├── main.c
 │   ├── hybrid_run
 │   └── run_hybrid.sh
-│
-├── hybrid-openmp-mpi/          # Large dataset experiments (~1.5GB)
-│   ├── HDFS.log
-│   ├── openmp.c
-│   ├── mpi.c
-│   ├── hybrid.c
-│   ├── openmp_run
-│   ├── mpi_run
-│   ├── hybrid_run
-│   ├── run-openmp.sh
-│   ├── run-mpi.sh
-│   └── run-hybrid.sh
-│
 └── README.md
 ```
 
