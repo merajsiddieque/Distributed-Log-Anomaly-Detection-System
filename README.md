@@ -286,6 +286,6 @@ The **Hybrid (MPI + OpenMP)** approach provides the best balance of speed and sc
 
 ## 👤 Author
 
-Meraj Alam Siddique
-Kotha Anshul Reddy
-Mihir Hajare
+- Meraj Alam Siddique
+- Kotha Anshul Reddy
+- Mihir Hajare
