@@ -121,9 +121,6 @@ log_monit/
 │
 ├── hybrid/
 │   ├── main.c
-│   ├── parser.c / parser.h
-│   ├── model.c / model.h
-│   ├── utils.c / utils.h
 │   ├── hybrid_run
 │   └── run_hybrid.sh
 │
