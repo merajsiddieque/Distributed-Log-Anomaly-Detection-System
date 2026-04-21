@@ -256,7 +256,6 @@ F1 Score: 0.0012
 
 We successfully built a **distributed anomaly detection system in C** and validated it on both:
 - Small structured dataset
-- Large real-world log dataset (~1.5GB)
 
 The **Hybrid (MPI + OpenMP)** approach provides the best balance of speed and scalability.
 
