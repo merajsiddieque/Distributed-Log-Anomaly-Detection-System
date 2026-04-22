@@ -264,3 +264,4 @@ This project demonstrates how **parallel computing techniques** can significantl
 - Meraj Alam Siddique
 - Kotha Anshul Reddy
 - Mihir Hajare
+- Pranav Sai
